@@ -199,7 +199,7 @@ cpdef fit_ret_t fit(np.ndarray[np.float_t, ndim=1] data):
 ####################################
 
 class Partition_tree:
-    def __init__(self, np.ndarray[np.float_t, ndim=1] values, int max_depth, int nb_segments, float delta_complexity, int tau):
+    def __init__(self, np.ndarray[np.float_t, ndim=1] values, int max_depth, int early_stop, int nb_segments, float delta_complexity, int tau):
         assert values.dtype == DTYPE
 
         cdef fit_ret_t fit_res
@@ -209,10 +209,11 @@ class Partition_tree:
         self.nb_segments = nb_segments
         self.delta_complexity = delta_complexity
         self.tau = tau
+        self.early_stop = early_stop
 
         # Tree structure
         fit_res = fit(self.signal)
-        self.head = Partition_node(self.signal, self.max_depth, self.nb_segments, self.delta_complexity, tau, fit_res.alpha, fit_res.beta,
+        self.head = Partition_node(self.signal, self.max_depth, self.early_stop, self.nb_segments, self.delta_complexity, tau, fit_res.alpha, fit_res.beta,
                                    fit_res.mean_squared_error, self.delta_complexity)
 
     def split(self):
@@ -249,8 +250,9 @@ cdef class Partition_node:
     cdef Partition_node right_child
     cdef np.ndarray outPrediction
     cdef int tau
+    cdef int early_stop
 
-    def __cinit__(self, np.ndarray[np.float_t, ndim=1] signal, int max_depth, int nb_segments, float delta_complexity, int tau, float alpha, float beta, float mse, int current_depth=0):
+    def __cinit__(self, np.ndarray[np.float_t, ndim=1] signal, int max_depth, int early_stop, int nb_segments, float delta_complexity, int tau, float alpha, float beta, float mse, int current_depth=0):
         assert signal.dtype == np.float
 
         self.signal = signal
@@ -271,6 +273,7 @@ cdef class Partition_node:
         self.outPrediction = np.zeros((self.numObs, ), dtype = float)  # predictions
         self.mse_improvement = 0.0
         self.tau = tau
+        self.early_stop = early_stop
 
 
     @cython.boundscheck(False)  # turn off bounds-checking for entire function
@@ -303,7 +306,7 @@ cdef class Partition_node:
         rightMse = res.rightmse
 
         # If no improvement, return
-        if minMse >= self.outMSE:
+        if minMse >= self.outMSE and self.early_stop == 1:
             return
 
         if np.abs(self.outMSE - minMse) / self.outMSE <= self.delta_complexity:
@@ -313,6 +316,7 @@ cdef class Partition_node:
 
         self.left_child = Partition_node(self.signal[:splittingIndex_i],
                                          self.max_depth,
+                                         self.early_stop,
                                          self.nb_segments,
                                          self.delta_complexity,
                                          self.tau,
@@ -322,6 +326,7 @@ cdef class Partition_node:
                                          self.current_depth + 1)
         self.right_child = Partition_node(self.signal[splittingIndex_i:],
                                           self.max_depth,
+                                          self.early_stop,
                                           self.nb_segments,
                                           self.delta_complexity,
                                           self.tau,
@@ -335,6 +340,7 @@ cdef class Partition_node:
 
     def get_predictions(self):
         if self.left_child is not None and self.right_child is not None:
+            # TODO : Change np.append in something not numpy
             return np.append(self.left_child.get_predictions(), self.right_child.get_predictions())
         else:
             return get_preds(self.signal, self.outOrigin, self.outSlope)
@@ -349,7 +355,7 @@ cdef class Partition_node:
         if self.left_child is None and self.right_child is None:
             return self.outDuration
         else:
-            # TODO : Change np.append in somethong not numpy
+            # TODO : Change np.append in something not numpy
             return np.append(self.left_child.get_durations(), self.right_child.get_durations())
 
     def is_terminal(self):

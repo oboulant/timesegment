@@ -32,7 +32,8 @@ if __name__ == '__main__':
 
     mon_obj = Partition_tree(np.array(data['value'])[data.shape[0] - 256:],
                              -1,
-                             10,
+                             0,
+                             30,
                              0.0,
                              1)
 
