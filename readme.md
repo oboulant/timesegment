@@ -30,13 +30,13 @@ my_obj = Partition_tree(np.array(data['value'])[data.shape[0] - 256:], # data as
                              1)   # Tau : Minimum number of observations within a segment
 
 # Build the partition tree
-res = mon_obj.split()
+res = my_obj.split()
 # Tree pruning
-mon_obj.weakest_link_pruning()
+my_obj.weakest_link_pruning()
 # Get predictions
-preds = mon_obj.get_predictions()
+preds = my_obj.get_predictions()
 # Get segments durations
-durations = mon_obj.get_durations()
+durations = my_obj.get_durations()
 print(durations)
 
 # Plot raw data alongside with prediction
