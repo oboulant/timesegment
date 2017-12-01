@@ -353,7 +353,7 @@ cdef class Partition_node:
 
     def get_durations(self):
         if self.left_child is None and self.right_child is None:
-            return self.outDuration
+            return np.array([self.outDuration], dtype = int)
         else:
             # TODO : Change np.append in something not numpy
             return np.append(self.left_child.get_durations(), self.right_child.get_durations())
